@@ -4,9 +4,7 @@
 
 int main(int argc, char *argv[])
 {
-
-    Chess::Engine::Board board;
-    std::cout << "Hello, world! :D" << std::endl;
+    Chess::Engine::Board board{};
     std::cout << board << std::endl;
     return 0;
 }

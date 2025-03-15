@@ -5,7 +5,59 @@
 namespace Chess::Engine
 {
 
-    Board::Board() { Reset(); }
+    // The constructor preloads all possible moves at each square for each piece type
+    Board::Board()
+    {
+        // precomputing valid moves for knights, which can be done once at the beginning since knights cannot be blocked
+        GenerateKnightMoves();
+    }
+
+    void Board::GenerateKnightMoves()
+    {
+        for (uint64_t squareIndex = 0; squareIndex < 64; squareIndex++)
+        {
+            uint64_t knight = GetSquare(squareIndex);
+            uint64_t moves = 0; // possible moves
+
+            moves |= (knight << 17) & 0xFEFEFEFEFEFEFEFEULL; // Up 2, right 1
+            moves |= (knight << 15) & 0x7F7F7F7F7F7F7F7FULL; // Up 2, left 1
+            moves |= (knight << 10) & 0xFCFCFCFCFCFCFCFCULL; // Right 2, up 1
+            moves |= (knight << 6) & 0x3F3F3F3F3F3F3F3FULL; // Left 2, up 1
+            moves |= (knight >> 17) & 0x7F7F7F7F7F7F7F7FULL; // Down 2, left 1
+            moves |= (knight >> 15) & 0xFEFEFEFEFEFEFEFEULL; // Down 2, right 1
+            moves |= (knight >> 10) & 0x3F3F3F3F3F3F3F3FULL; // Left 2, down 1
+            moves |= (knight >> 6) & 0xFCFCFCFCFCFCFCFCULL; // Right 2, down 1
+
+            knightMoves[squareIndex] = moves;
+        }
+
+
+        // initializes the board in all starting positions
+        Reset();
+    }
+
+    uint64_t Board::GetRookMoves(int square, uint64_t blockers)
+    {
+        uint64_t moves = 0;
+
+        // shift left until a blocker or the end of the board is hit
+        for (int i = square + 1; i * 8 != 0; i++)
+        {
+            moves |= (1ULL << i);
+            if (blockers & (1ULL << i))
+                break;
+        }
+
+        // shift right until a blocker or the end of the board is hit
+        for (int i = square - 1; i % 8 != 7 && i >= 0; i--)
+        {
+            moves |= (1ULL << i);
+            if (blockers & (1ULL << i))
+                break;
+        }
+
+        return moves;
+    }
 
 
     void Board::Reset()
@@ -23,7 +75,8 @@ namespace Chess::Engine
         occupancy = 0xFFFF00000000FFFFULL;
     }
 
-    uint64_t Board::GetSquare(uint64_t rank, uint64_t file) const { return 1ULL << ((8 * rank + file)); }
+    uint64_t Board::GetSquare(const uint64_t index) { return 1ULL << index; }
+    uint64_t Board::GetSquare(const uint64_t rank, const uint64_t file) { return 1ULL << ((8 * rank + file)); }
 
     std::ostream &operator<<(std::ostream &os, const Board &board)
     {
@@ -32,6 +85,8 @@ namespace Chess::Engine
         static std::string GREEN = "\033[32m"; // for white pieces
         static std::string BLUE = "\033[34m"; // for black pieces
 
+
+        os << '\n';
 
         // starts from top left, then to the right
         for (uint64_t rank = 8; rank > 0; rank--)
@@ -42,7 +97,7 @@ namespace Chess::Engine
                 // rank - 1 is a little confusing, but for internal calculations, rank and file starts at 0. The
                 // loop starts at 8 for printing the rank number on the side, but also because it's unsigned, there's
                 // shenanigans when it tries to decrement below 0 while simultaneously checking if rank >= 0 ...
-                uint64_t square = board.GetSquare(rank - 1, file);
+                const uint64_t square = Board::GetSquare(rank - 1, file);
 
                 if (!(square & board.occupancy))
                 {
@@ -85,6 +140,8 @@ namespace Chess::Engine
             }
             os << '\n';
         }
+
+        os << "\n     A  B  C  D  E  F  G  H\n";
 
         return os;
     }
